@@ -1,0 +1,178 @@
+/* Reset và cấu hình cơ bản */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header styles */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background-color: #0c1119;
+    height: 60px;
+}
+
+/* Main content */
+main {
+    flex: 1;
+    padding-top: 80px; /* Khoảng cách từ header */
+    padding-bottom: 40px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* Comic detail page */
+.comic-detail {
+    padding-top: 80px; /* Khoảng cách từ header */
+}
+
+.comic-info {
+    margin-top: 20px;
+}
+
+/* Card styles */
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 25px;
+    height: 100%;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.card-img-top {
+    height: 250px;
+    object-fit: cover;
+}
+
+/* Footer styles */
+footer {
+    margin-top: auto;
+    padding: 20px 0;
+    background-color: #333;
+    color: white;
+}
+
+/* Search container */
+.search-container {
+    padding-top: 80px;
+    padding-bottom: 40px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    main {
+        padding-top: 70px;
+    }
+    
+    .comic-detail {
+        padding-top: 70px;
+    }
+    
+    .card-img-top {
+        height: 200px;
+    }
+} 
+
+/* Dropdown menu categories styling */
+.dropdown-menu-categories {
+    min-width: 500px;
+    columns: 3;
+    column-gap: 20px;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+}
+
+.dropdown-menu-categories .dropdown-item {
+    display: block;
+    padding: 8px 15px;
+    color: #333;
+    text-decoration: none;
+    border-radius: 4px;
+    break-inside: avoid-column;
+    white-space: nowrap;
+}
+
+.dropdown-menu-categories .dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #0d6efd;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dropdown-menu-categories {
+        min-width: 100%;
+        columns: 2;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dropdown-menu-categories {
+        columns: 1;
+    }
+}
+
+/* Position the dropdown menu correctly */
+.nav-item.dropdown {
+    position: static;
+}
+
+.navbar .dropdown-menu-categories {
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 0;
+}
+
+@media (max-width: 768px) {
+    .navbar .dropdown-menu-categories {
+        left: 0;
+        transform: none;
+    }
+} 
+
+/* Điều chỉnh khoảng cách cho nội dung chính */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Thêm padding-top để tránh bị header che */
+.search-container {
+    padding-top: 80px; /* Điều chỉnh giá trị này tùy theo chiều cao của header */
+    padding-bottom: 40px;
+}
+
+/* Style cho footer */
+footer {
+    margin-top: auto;
+    padding: 20px 0;
+    background-color: #333;
+    color: white;
+} 
