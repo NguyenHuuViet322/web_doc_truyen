@@ -5,19 +5,28 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Fix path to config.php - it should be in the same directory or parent directory
-require_once('config.php'); // If config.php is in the same directory as login.php
+require_once('config.php'); 
 
 // Fix database.php path - it should be in the same directory
-require_once('database.php'); // Changed from ../includes/database.php
-require_once '../includes/functions.php';
+require_once('database.php'); 
+require_once 'functions.php'; 
+
+// Initialize $login variable for the main login.php file
+$login = [
+    'success' => false,
+    'admin_redirect' => false,
+    'redirect_url' => '',
+    'username' => isset($_POST['username']) ? $_POST['username'] : '',
+    'errors' => []
+];
+
+$error = '';
 
 // Nếu đã đăng nhập thì chuyển đến trang dashboard
 if (isAdmin()) {
     header('Location: dashboard.php');
     exit();
 }
-
-$error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];
@@ -26,77 +35,84 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $db = new Database();
     $conn = $db->getConnection();
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND role = 'admin'");
-    $stmt->execute([$username]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+    // First check if the user exists (regardless of role)
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
+    $stmt->execute([$username, $username]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($admin) {
-        if (password_verify($password, $admin['password'])) {
-            $_SESSION['admin_id'] = $admin['id'];
-            $_SESSION['admin_username'] = $admin['username'];
-            $_SESSION['admin_role'] = $admin['role'];
+    if ($user) {
+        if (password_verify($password, $user['password'])) {
+            // Set common session variables
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['logged_in'] = true;
+            $_SESSION['role'] = $user['role'];
+            if (isset($user['avatar']) && !empty($user['avatar'])) {
+                $_SESSION['avatar'] = $user['avatar'];
+            }
 
-            // Cập nhật thời gian đăng nhập
+            // Update last login time
             $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-            $stmt->execute([$admin['id']]);
+            $stmt->execute([$user['id']]);
 
-            header('Location: dashboard.php');
-            exit();
+            // Update $login variable
+            $login['success'] = true;
+
+            // Check if admin for redirect
+            if ($user['role'] === 'admin') {
+                // Admin-specific session variables
+                $_SESSION['admin_id'] = $user['id'];
+                $_SESSION['admin_username'] = $user['username'];
+                $_SESSION['admin_role'] = $user['role'];
+                
+                $login['admin_redirect'] = true;
+                $login['redirect_url'] = 'admin/dashboard.php';
+            } else {
+                // Regular user redirect
+                $login['admin_redirect'] = false;
+                $login['redirect_url'] = 'index.php';
+            }
+            
+            // Remember me functionality
+            if (isset($_POST['remember']) && $_POST['remember'] == 1) {
+                $access_key = bin2hex(random_bytes(32));
+                
+                // Store access key in database
+                $stmt = $conn->prepare("UPDATE users SET access_key = ? WHERE id = ?");
+                $stmt->execute([$access_key, $user['id']]);
+                
+                // Set cookies
+                $user_data = [
+                    'id' => $user['id'],
+                    'username' => $user['username']
+                ];
+                setcookie('access_key', $access_key, time() + (30 * 24 * 60 * 60), '/'); // 30 days
+                setcookie('user_data', json_encode($user_data), time() + (30 * 24 * 60 * 60), '/');
+            }
         } else {
             $error = 'Mật khẩu không đúng!';
+            $login['errors'][] = $error;
         }
     } else {
-        $error = 'Tài khoản không tồn tại hoặc không có quyền admin!';
+        $error = 'Tài khoản không tồn tại!';
+        $login['errors'][] = $error;
+    }
+}
+
+// Define display_login_errors function if not already defined
+if (!function_exists('display_login_errors')) {
+    function display_login_errors() {
+        global $login, $error;
+        
+        if (!empty($error)) {
+            echo '<div class="alert alert-danger">' . $error . '</div>';
+        } else if (!empty($login['errors'])) {
+            echo '<div class="alert alert-danger">';
+            foreach ($login['errors'] as $err) {
+                echo $err . '<br>';
+            }
+            echo '</div>';
+        }
     }
 }
 ?>
-
-<!DOCTYPE html>
-<html lang="vi">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: #f8f9fa;
-        }
-
-        .login-form {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 20px;
-            background: #fff;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <div class="login-form">
-            <h2 class="text-center mb-4">Đăng nhập Admin</h2>
-
-            <?php if ($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
-            <?php endif; ?>
-
-            <form method="POST">
-                <div class="mb-3">
-                    <label class="form-label">Tên đăng nhập</label>
-                    <input type="text" name="username" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Mật khẩu</label>
-                    <input type="password" name="password" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
-            </form>
-        </div>
-    </div>
-</body>
-
-</html>
