@@ -19,6 +19,8 @@ $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+
+
 // Xử lý cập nhật thông tin
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['email'];
@@ -88,7 +90,7 @@ $recent_comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!DOCTYPE html>
 <html lang="vi">
 
-<head>
+<head>                                                                  
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trang cá nhân - <?php echo $user['username']; ?></title>
@@ -131,7 +133,19 @@ $recent_comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="card-body text-center">
                         <img src="uploads/avatars/<?php echo $user['avatar']; ?>" class="profile-avatar mb-3">
                         <h4><?php echo $user['username']; ?></h4>
-                        <p class="text-muted">Tham gia: <?php echo formatDate($user['created_at']); ?></p>
+                        <p class="text-muted">
+                            Tham gia: 
+                            <?php 
+                            // Explicitly verify we have a date from the user table
+                            if (isset($user['created_at']) && !empty($user['created_at'])) {
+                                echo formatDate($user['created_at']);
+                            } else {
+                                // If you need to debug, uncomment this line
+                                // error_log('Missing created_at date for user ID: ' . $user_id);
+                                echo "Không có thông tin";
+                            }
+                            ?>
+                        </p>
 
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                             <i class="fas fa-edit"></i> Chỉnh sửa thông tin
@@ -200,7 +214,9 @@ $recent_comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <form method="POST" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label>Email</label>
-                            <input type="email" name="email" class="form-control" value="<?php echo $user['email']; ?>" required>
+                            <input type="email" name="email" class="form-control" 
+                                   value="<?php echo isset($user['email']) ? htmlspecialchars($user['email']) : ''; ?>" 
+                                   required>
                         </div>
                         <div class="mb-3">
                             <label>Avatar mới</label>

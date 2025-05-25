@@ -16,8 +16,13 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['logged_in']) && $_SESSION['l
     $user = [
         'id' => $_SESSION['user_id'],
         'username' => $_SESSION['username'],
+        'email' => $_SESSION['email'] ?? '',
         'role' => $_SESSION['role'],
-        'avatar' => $_SESSION['avatar'] ?? ''
+        'avatar' => $_SESSION['avatar'] ?? '',
+        'created_at' => $_SESSION['created_at'] ?? '',
+        'role' => $_SESSION['role'] ?? '',
+        'status' => $_SESSION['status'] ?? '',
+        'last_login' => $_SESSION['last_login'] ?? ''
     ];
 }
 // If no session but we have cookies, verify access_key

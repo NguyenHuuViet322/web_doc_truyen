@@ -47,8 +47,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['username'] = $user['username'];
             $_SESSION['logged_in'] = true;
             $_SESSION['role'] = $user['role'];
+            $_SESSION['email'] = $user['email'] ?? '';
+            $_SESSION['created_at'] = $user['created_at'] ?? '';
+            $_SESSION['status'] = $user['status'] ?? '';
+            $_SESSION['last_login'] = $user['last_login'] ?? ''; 
+            
+            // Set avatar if exists
             if (isset($user['avatar']) && !empty($user['avatar'])) {
                 $_SESSION['avatar'] = $user['avatar'];
+            }
+            
+            // Store existing access_key if present in database
+            if (isset($user['access_key']) && !empty($user['access_key'])) {
+                $_SESSION['access_key'] = $user['access_key'];
             }
 
             // Update last login time
@@ -80,6 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Store access key in database
                 $stmt = $conn->prepare("UPDATE users SET access_key = ? WHERE id = ?");
                 $stmt->execute([$access_key, $user['id']]);
+                
+                // Also store in session
+                $_SESSION['access_key'] = $access_key;
                 
                 // Set cookies
                 $user_data = [

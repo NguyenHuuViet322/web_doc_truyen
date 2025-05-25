@@ -261,6 +261,15 @@ CREATE TABLE `ratings` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ;
 
+CREATE TABLE read_history (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    comic_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (comic_id) REFERENCES comics(id)
+);
+
 -- --------------------------------------------------------
 
 --

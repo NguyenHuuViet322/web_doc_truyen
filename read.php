@@ -1,104 +1,289 @@
 <?php
+session_start();
 require_once 'includes/config.php';
 require_once 'includes/database.php';
 require_once 'includes/functions.php';
 
+// Initialize database connection at the beginning
 $db = new Database();
 $conn = $db->getConnection();
 
-// Lấy thông tin truyện
-if (isset($_GET['id'])) {
-    $comic_id = (int)$_GET['id'];
+// Get parameters
+$comic_id = isset($_GET['comic']) ? (int)$_GET['comic'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
+$chapter_id = isset($_GET['chapter']) ? (int)$_GET['chapter'] : 0;
 
-    // Lấy thông tin truyện
-    $stmt = $conn->prepare("
-        SELECT c.*, 
-               (SELECT COUNT(*) FROM chapters WHERE comic_id = c.id) as chapter_count,
-               (SELECT COUNT(*) FROM follows WHERE comic_id = c.id) as follow_count
-        FROM comics c 
-        WHERE c.id = ?
-    ");
-    $stmt->execute([$comic_id]);
-    $comic = $stmt->fetch();
-
-    if (!$comic) {
-        header('Location: index.php');
-        exit;
-    }
-
-    // Lấy danh sách chapter
-    $stmt = $conn->prepare("
-        SELECT * FROM chapters 
-        WHERE comic_id = ? 
-        ORDER BY chapter_number DESC
-    ");
-    $stmt->execute([$comic_id]);
-    $chapters = $stmt->fetchAll();
-} else {
-    header('Location: index.php');
-    exit;
+// If we only have comic_id but no chapter_id, this is the comic details page
+if ($comic_id > 0 && $chapter_id == 0) {
+    // Redirect to comic.php for comic details
+    header('Location: comic.php?id=' . $comic_id);
+    exit();
 }
+
+// Validate parameters
+if ($comic_id <= 0 || $chapter_id <= 0) {
+    header('Location: index.php');
+    exit();
+}
+
+// Get chapter info
+$stmt = $conn->prepare("
+    SELECT ch.*, c.title as comic_title, c.id as comic_id
+    FROM chapters ch
+    JOIN comics c ON ch.comic_id = c.id
+    WHERE ch.id = :chapter_id AND ch.comic_id = :comic_id
+");
+$stmt->bindParam(':chapter_id', $chapter_id, PDO::PARAM_INT);
+$stmt->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+$stmt->execute();
+$chapter = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$chapter) {
+    header('Location: comic.php?id=' . $comic_id);
+    exit();
+}
+
+// Get chapter images
+$stmt = $conn->prepare("
+    SELECT * FROM chapter_images
+    WHERE chapter_id = :chapter_id
+    ORDER BY image_order, id
+");
+$stmt->bindParam(':chapter_id', $chapter_id, PDO::PARAM_INT);
+$stmt->execute();
+$images = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get previous and next chapter
+$prev_chapter = $conn->prepare("
+    SELECT id FROM chapters
+    WHERE comic_id = :comic_id AND chapter_number < :current_number
+    ORDER BY chapter_number DESC
+    LIMIT 1
+");
+$prev_chapter->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+$prev_chapter->bindParam(':current_number', $chapter['chapter_number'], PDO::PARAM_INT);
+$prev_chapter->execute();
+$prev_id = $prev_chapter->fetchColumn();
+
+$next_chapter = $conn->prepare("
+    SELECT id FROM chapters
+    WHERE comic_id = :comic_id AND chapter_number > :current_number
+    ORDER BY chapter_number ASC
+    LIMIT 1
+");
+$next_chapter->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+$next_chapter->bindParam(':current_number', $chapter['chapter_number'], PDO::PARAM_INT);
+$next_chapter->execute();
+$next_id = $next_chapter->fetchColumn();
+
+// Track reading in history
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    
+    try {
+        // Check if we already have a history entry
+        $check_stmt = $conn->prepare("
+            SELECT id FROM read_history 
+            WHERE user_id = :user_id AND comic_id = :comic_id
+        ");
+        $check_stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+        $check_stmt->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+        $check_stmt->execute();
+        
+        if ($check_stmt->rowCount() > 0) {
+            // Update existing record
+            $update_stmt = $conn->prepare("
+                UPDATE read_history 
+                SET created_at = NOW() 
+                WHERE user_id = :user_id AND comic_id = :comic_id
+            ");
+            $update_stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+            $update_stmt->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+            $update_stmt->execute();
+        } else {
+            // Insert new record
+            $insert_stmt = $conn->prepare("
+                INSERT INTO read_history (user_id, comic_id)
+                VALUES (:user_id, :comic_id)
+            ");
+            $insert_stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+            $insert_stmt->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+            $insert_stmt->execute();
+        }
+    } catch (PDOException $e) {
+        error_log("Error tracking reading history: " . $e->getMessage());
+    }
+}
+
+// Record view
+$conn->prepare("
+    INSERT INTO views (chapter_id, user_id, ip_address)
+    VALUES (:chapter_id, :user_id, :ip_address)
+")->execute([
+    ':chapter_id' => $chapter_id,
+    ':user_id' => $_SESSION['user_id'] ?? null,
+    ':ip_address' => $_SERVER['REMOTE_ADDR']
+]);
 ?>
 
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($comic['title']); ?></title>
+    <title>Chapter <?php echo $chapter['chapter_number']; ?> - <?php echo htmlspecialchars($chapter['comic_title']); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .chapter-navigation {
+            position: sticky;
+            top: 10px;
+            z-index: 100;
+        }
+        .chapter-image {
+            max-width: 100%;
+            margin-bottom: 10px;
+        }
+        body {
+            background: #f5f5f5;
+        }
+        .reading-container {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .btn-chapter {
+            width: 120px;
+        }
+    </style>
 </head>
-
 <body>
     <?php include 'includes/navbar.php'; ?>
-
-    <main>
-        <div class="comic-detail">
-            <div class="container">
-                <div class="comic-info">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <img src="uploads/comics/<?php echo $comic['cover_image']; ?>"
-                                alt="<?php echo htmlspecialchars($comic['title']); ?>"
-                                class="img-fluid">
-                        </div>
-                        <div class="col-md-8">
-                            <h1><?php echo htmlspecialchars($comic['title']); ?></h1>
-                            <p><strong>Tác giả:</strong> <?php echo htmlspecialchars($comic['author']); ?></p>
-                            <p><strong>Trạng thái:</strong>
-                                <?php echo $comic['status'] == 'ongoing' ? 'Đang tiến hành' : 'Hoàn thành'; ?>
-                            </p>
-                            <p><strong>Số chapter:</strong> <?php echo $comic['chapter_count']; ?></p>
-                            <p><strong>Lượt theo dõi:</strong> <?php echo number_format($comic['follow_count']); ?></p>
-                            <div class="description">
-                                <?php echo nl2br(htmlspecialchars($comic['description'])); ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="chapter-list mt-4">
-                        <h2>Danh sách chapter</h2>
-                        <div class="list-group">
-                            <?php foreach ($chapters as $chapter): ?>
-                                <a href="chapter.php?id=<?php echo $chapter['id']; ?>"
-                                    class="list-group-item list-group-item-action">
-                                    Chapter <?php echo $chapter['chapter_number']; ?>
-                                    <small class="text-muted float-end">
-                                        <?php echo date('d/m/Y', strtotime($chapter['created_at'])); ?>
-                                    </small>
-                                </a>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
+    
+    <div class="container mt-4">
+        <!-- Chapter info and navigation -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="h3"><?php echo htmlspecialchars($chapter['comic_title']); ?></h1>
+                    <a href="comic.php?id=<?php echo $chapter['comic_id']; ?>" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Quay lại
+                    </a>
                 </div>
+                <h2 class="h5">Chapter <?php echo $chapter['chapter_number']; ?> 
+                    <?php if (!empty($chapter['title'])): ?>
+                        - <?php echo htmlspecialchars($chapter['title']); ?>
+                    <?php endif; ?>
+                </h2>
             </div>
         </div>
-    </main>
-
+        
+        <!-- Chapter Navigation -->
+        <div class="chapter-navigation d-flex justify-content-between mb-3">
+            <div>
+                <?php if ($prev_id): ?>
+                <a href="read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $prev_id; ?>" class="btn btn-primary btn-chapter">
+                    <i class="fas fa-arrow-left me-1"></i>Trước
+                </a>
+                <?php else: ?>
+                <button class="btn btn-secondary btn-chapter" disabled>
+                    <i class="fas fa-arrow-left me-1"></i>Trước
+                </button>
+                <?php endif; ?>
+            </div>
+            
+            <div>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Chapter <?php echo $chapter['chapter_number']; ?>
+                    </button>
+                    <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                        <?php 
+                        $chapters_list = $conn->prepare("
+                            SELECT id, chapter_number, title 
+                            FROM chapters 
+                            WHERE comic_id = :comic_id
+                            ORDER BY chapter_number DESC
+                        ");
+                        $chapters_list->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+                        $chapters_list->execute();
+                        
+                        while ($ch = $chapters_list->fetch()): 
+                        ?>
+                            <li>
+                                <a class="dropdown-item <?php echo ($ch['id'] == $chapter_id) ? 'active' : ''; ?>" 
+                                   href="read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $ch['id']; ?>">
+                                    Chapter <?php echo $ch['chapter_number']; ?>
+                                    <?php if (!empty($ch['title'])): ?> - <?php echo htmlspecialchars($ch['title']); ?><?php endif; ?>
+                                </a>
+                            </li>
+                        <?php endwhile; ?>
+                    </ul>
+                </div>
+            </div>
+            
+            <div>
+                <?php if ($next_id): ?>
+                <a href="read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $next_id; ?>" class="btn btn-primary btn-chapter">
+                    Tiếp<i class="fas fa-arrow-right ms-1"></i>
+                </a>
+                <?php else: ?>
+                <button class="btn btn-secondary btn-chapter" disabled>
+                    Tiếp<i class="fas fa-arrow-right ms-1"></i>
+                </button>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Chapter Content -->
+        <div class="reading-container text-center">
+            <?php if (count($images) > 0): ?>
+                <?php foreach ($images as $image): ?>
+                <img src="uploads/chapters/<?php echo htmlspecialchars($image['image_path']); ?>" 
+                     alt="Chapter <?php echo $chapter['chapter_number']; ?> - Image <?php echo $image['image_order']; ?>"
+                     class="chapter-image">
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="alert alert-info">
+                    Không có hình ảnh nào cho chapter này.
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <!-- Bottom Chapter Navigation -->
+        <div class="d-flex justify-content-between mt-4 mb-5">
+            <div>
+                <?php if ($prev_id): ?>
+                <a href="read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $prev_id; ?>" class="btn btn-primary btn-chapter">
+                    <i class="fas fa-arrow-left me-1"></i>Trước
+                </a>
+                <?php else: ?>
+                <button class="btn btn-secondary btn-chapter" disabled>
+                    <i class="fas fa-arrow-left me-1"></i>Trước
+                </button>
+                <?php endif; ?>
+            </div>
+            
+            <a href="comic.php?id=<?php echo $comic_id; ?>" class="btn btn-outline-primary">
+                <i class="fas fa-list me-1"></i>Danh sách chapter
+            </a>
+            
+            <div>
+                <?php if ($next_id): ?>
+                <a href="read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $next_id; ?>" class="btn btn-primary btn-chapter">
+                    Tiếp<i class="fas fa-arrow-right ms-1"></i>
+                </a>
+                <?php else: ?>
+                <button class="btn btn-secondary btn-chapter" disabled>
+                    Tiếp<i class="fas fa-arrow-right ms-1"></i>
+                </button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
     <?php include 'includes/footer.php'; ?>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>
