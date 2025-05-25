@@ -288,6 +288,92 @@ $conn->prepare("UPDATE comics SET views = views + 1 WHERE id = :id")->execute(['
                     </div>
                 </div>
             </div>
+            
+            <!-- Comment Section -->
+            <div class="card mb-5 content-section">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-comments me-2"></i>Bình luận</h4>
+                </div>
+                <div class="card-body">
+                    <?php
+                    // Get comments for this comic
+                    $comments_stmt = $conn->prepare("
+                        SELECT c.*, u.username, u.avatar
+                        FROM comments c
+                        JOIN users u ON c.user_id = u.id
+                        WHERE c.comic_id = :comic_id AND c.chapter_id IS NULL AND c.status = 'active'
+                        ORDER BY c.created_at DESC
+                    ");
+                    $comments_stmt->bindParam(':comic_id', $comic_id, PDO::PARAM_INT);
+                    $comments_stmt->execute();
+                    $comments = $comments_stmt->fetchAll(PDO::FETCH_ASSOC);
+                    ?>
+                    
+                    <!-- Comment Form -->
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                        <form action="actions/add-comment.php" method="post" class="mb-4">
+                            <input type="hidden" name="comic_id" value="<?php echo $comic_id; ?>">
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Viết bình luận của bạn:</label>
+                                <textarea class="form-control" id="comment" name="content" rows="3" required></textarea>
+                            </div>
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane me-1"></i>Gửi bình luận
+                                </button>
+                            </div>
+                        </form>
+                    <?php else: ?>
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <a href="login.php?redirect=<?php echo urlencode('comic.php?id=' . $comic_id); ?>" class="alert-link">Đăng nhập</a> để viết bình luận.
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Comments List -->
+                    <h5 class="mb-3"><?php echo count($comments); ?> bình luận</h5>
+                    
+                    <?php if (count($comments) > 0): ?>
+                        <div class="comments-list">
+                            <?php foreach ($comments as $comment): ?>
+                                <div class="comment-item card mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex">
+                                            <img src="uploads/avatars/<?php echo htmlspecialchars($comment['avatar']); ?>" 
+                                                 class="rounded-circle me-3" width="40" height="40" 
+                                                 alt="<?php echo htmlspecialchars($comment['username']); ?>">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($comment['username']); ?></h6>
+                                                    <small class="text-muted"><?php echo formatDate($comment['created_at']); ?></small>
+                                                </div>
+                                                <p class="mb-1"><?php echo nl2br(htmlspecialchars($comment['content'])); ?></p>
+                                                
+                                                <?php if (isset($_SESSION['user_id']) && 
+                                                       ($_SESSION['user_id'] == $comment['user_id'] || 
+                                                        ($_SESSION['role'] ?? '') == 'admin')): ?>
+                                                    <div class="text-end">
+                                                        <a href="actions/delete-comment.php?id=<?php echo $comment['id']; ?>&comic=<?php echo $comic_id; ?>" 
+                                                           class="text-danger small" 
+                                                           onclick="return confirm('Bạn có chắc muốn xóa bình luận này?');">
+                                                            <i class="fas fa-trash-alt me-1"></i>Xóa
+                                                        </a>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-comment-slash fa-3x mb-3"></i>
+                            <p>Chưa có bình luận nào. Hãy là người đầu tiên bình luận!</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
     </main>
     

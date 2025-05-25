@@ -42,8 +42,18 @@ if (isset($_POST['delete_genre'])) {
     }
 }
 
-// Lấy danh sách thể loại
-$genres = $conn->query("SELECT * FROM genres ORDER BY id ASC")->fetchAll();
+// Lấy danh sách thể loại không trùng lặp tên
+$genres = $conn->query("
+    SELECT g1.* 
+    FROM genres g1
+    LEFT JOIN (
+        SELECT name, MIN(id) as min_id
+        FROM genres
+        GROUP BY name
+    ) g2 ON g1.name = g2.name AND g1.id = g2.min_id
+    WHERE g1.id = g2.min_id
+    ORDER BY g1.name ASC
+")->fetchAll();
 
 ?>
 
@@ -93,7 +103,7 @@ $genres = $conn->query("SELECT * FROM genres ORDER BY id ASC")->fetchAll();
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <!-- <th>ID</th> -->
                                 <th>Tên thể loại</th>
                                 <th>Slug</th>
                                 <th>Ngày tạo</th>
@@ -103,7 +113,7 @@ $genres = $conn->query("SELECT * FROM genres ORDER BY id ASC")->fetchAll();
                         <tbody>
                             <?php foreach ($genres as $genre): ?>
                                 <tr>
-                                    <td><?php echo $genre['id']; ?></td>
+                                    <!-- <td><?php echo $genre['id']; ?></td> -->
                                     <td><?php echo htmlspecialchars($genre['name']); ?></td>
                                     <td><?php echo htmlspecialchars($genre['slug']); ?></td>
                                     <td><?php echo date('d/m/Y H:i', strtotime($genre['created_at'])); ?></td>
