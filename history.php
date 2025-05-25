@@ -81,6 +81,24 @@ $history_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .navbar-spacer {
             margin-bottom: 20px;
         }
+        /* Position delete button */
+        .delete-history-item {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .delete-history-item:hover {
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -90,12 +108,25 @@ $history_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="navbar-spacer" style="height: 20px;"></div>
     
     <div class="container mt-5">  <!-- Changed from mt-4 to mt-5 for more space -->
+        <!-- Display success/error messages -->
+        <?php if (isset($_SESSION['message'])): ?>
+            <div class="alert alert-<?php echo $_SESSION['message_type'] ?? 'info'; ?> alert-dismissible fade show" role="alert">
+                <?php 
+                echo $_SESSION['message']; 
+                // Clear the message after displaying
+                unset($_SESSION['message']);
+                unset($_SESSION['message_type']);
+                ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+    
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="mb-0"><i class="fas fa-history me-2"></i>Lịch sử đọc truyện</h1>
             
             <?php if (count($history_items) > 0): ?>
             <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearHistoryModal">
-                <i class="fas fa-trash me-1"></i>Xóa lịch sử
+                <i class="fas fa-trash me-1"></i>Xóa tất cả
             </button>
             <?php endif; ?>
         </div>
@@ -104,7 +135,13 @@ $history_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 mb-4">
                 <?php foreach ($history_items as $item): ?>
                     <div class="col">
-                        <div class="card h-100 history-item">
+                        <div class="card h-100 history-item position-relative">
+                            <!-- Add delete button for individual history item -->
+                            <a href="#" class="delete-history-item" 
+                               onclick="confirmDelete(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['comic_title']); ?>')">
+                                <i class="fas fa-times"></i>
+                            </a>
+                            
                             <img src="uploads/comics/<?php echo htmlspecialchars($item['cover_image']); ?>" 
                                  class="card-img-top history-cover" 
                                  alt="<?php echo htmlspecialchars($item['comic_title']); ?>">
@@ -200,5 +237,12 @@ $history_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     <?php include 'includes/footer.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function confirmDelete(historyId, comicTitle) {
+            if (confirm(`Bạn có chắc muốn xóa "${comicTitle}" khỏi lịch sử đọc?`)) {
+                window.location.href = `actions/delete-history-item.php?id=${historyId}`;
+            }
+        }
+    </script>
 </body>
 </html>
