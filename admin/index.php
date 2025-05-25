@@ -62,6 +62,21 @@ $recent_chapters = $stmt->fetchAll();
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1>Trang quản trị</h1>
                 </div>
+                
+                <!-- Admin welcome and quick links -->
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h4 class="mb-1">Xin chào, <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?>!</h4>
+                            <p class="mb-0">Bạn đang đăng nhập với quyền quản trị viên</p>
+                        </div>
+                        <div class="btn-group">
+                            <a href="comics.php" class="btn btn-primary"><i class="fas fa-book me-2"></i>Quản lý truyện</a>
+                            <a href="users.php" class="btn btn-secondary"><i class="fas fa-users me-2"></i>Quản lý người dùng</a>
+                            <a href="settings.php" class="btn btn-info"><i class="fas fa-cog me-2"></i>Cài đặt hệ thống</a>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Thống kê nhanh -->
                 <div class="row">

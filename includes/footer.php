@@ -8,9 +8,9 @@
             <div class="col-md-3">
                 <h5>Liên kết</h5>
                 <ul class="list-unstyled">
-                    <li><a href="index.php" class="text-light">Trang chủ</a></li>
-                    <li><a href="latest.php" class="text-light">Mới cập nhật</a></li>
-                    <li><a href="categories.php" class="text-light">Thể loại</a></li>
+                    <li><a href="../index.php" class="text-light">Trang chủ</a></li>
+                    <li><a href="../latest.php" class="text-light">Mới cập nhật</a></li>
+                    <li><a href="../categories.php" class="text-light">Thể loại</a></li>
                 </ul>
             </div>
             <div class="col-md-3">
