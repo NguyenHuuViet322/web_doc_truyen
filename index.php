@@ -32,7 +32,7 @@ $latest_comics = $stmt->fetchAll();
 </head>
 
 <body>
-    <?php include 'includes/header.php'; ?>
+    <?php include 'includes/navbar.php'; ?>
 
     <main>
         <div class="container">

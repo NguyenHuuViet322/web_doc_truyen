@@ -4,14 +4,64 @@ require_once '../includes/config.php';
 require_once '../includes/database.php';
 require_once '../includes/functions.php';
 
-// Nếu đã đăng nhập thì chuyển đến trang dashboard
-if (isAdmin()) {
-    header('Location: dashboard.php');
+$error = '';
+
+// First check for access token in cookies
+if (isset($_COOKIE['access_key']) && isset($_COOKIE['user_data'])) {
+    try {
+        $user_data = json_decode($_COOKIE['user_data'], true);
+        $access_key = $_COOKIE['access_key'];
+        
+        if ($user_data && isset($user_data['id']) && isset($user_data['role']) && $user_data['role'] === 'admin') {
+            $db = new Database();
+            $conn = $db->getConnection();
+            
+            // Verify if this is a valid admin user
+            $stmt = $conn->prepare("SELECT * FROM users WHERE id = ? AND role = 'admin'");
+            $stmt->execute([$user_data['id']]);
+            $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($admin) {
+                // Set admin session variables
+                $_SESSION['admin_id'] = $admin['id'];
+                $_SESSION['admin_username'] = $admin['username'];
+                $_SESSION['admin_role'] = $admin['role'];
+                
+                // Also set regular user session
+                $_SESSION['user_id'] = $admin['id'];
+                $_SESSION['username'] = $admin['username'];
+                $_SESSION['role'] = $admin['role'];
+                $_SESSION['logged_in'] = true;
+                
+                header('Location: index.php');
+                exit();
+            }
+        }
+    } catch (Exception $e) {
+        // Silent fail - will continue to regular login
+        error_log("Cookie authentication error: " . $e->getMessage());
+    }
+}
+
+// Check if user is already logged in as admin through regular login
+if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+    // User is already logged in as admin from regular site, set admin session variables
+    $_SESSION['admin_id'] = $_SESSION['user_id'];
+    $_SESSION['admin_username'] = $_SESSION['username'];
+    $_SESSION['admin_role'] = $_SESSION['role'];
+    
+    // Redirect to admin dashboard
+    header('Location: index.php');
     exit();
 }
 
-$error = '';
+// Check if admin is already logged in through admin login
+if (isset($_SESSION['admin_id']) && isset($_SESSION['admin_role']) && $_SESSION['admin_role'] === 'admin') {
+    header('Location: index.php');
+    exit();
+}
 
+// Process login form
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
@@ -19,21 +69,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $db = new Database();
     $conn = $db->getConnection();
 
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND role = 'admin'");
-    $stmt->execute([$username]);
+    $stmt = $conn->prepare("SELECT * FROM users WHERE (username = ? OR email = ?) AND role = 'admin'");
+    $stmt->execute([$username, $username]);
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($admin) {
         if (password_verify($password, $admin['password'])) {
+            // Generate access token
+            $access_key = bin2hex(random_bytes(32));
+            $expires = time() + 60 * 60 * 24 * 30; // 30 days
+            
+            // Set session variables
+            $_SESSION['user_id'] = $admin['id'];
+            $_SESSION['username'] = $admin['username'];
+            $_SESSION['role'] = $admin['role'];
+            $_SESSION['logged_in'] = true;
+            
             $_SESSION['admin_id'] = $admin['id'];
             $_SESSION['admin_username'] = $admin['username'];
             $_SESSION['admin_role'] = $admin['role'];
+            
+            // Store user data in cookies for persistent auth
+            $user_data = [
+                'id' => $admin['id'],
+                'username' => $admin['username'],
+                'role' => $admin['role']
+            ];
+            
+            // Set cookies with user data and access key
+            setcookie('user_data', json_encode($user_data), $expires, '/');
+            setcookie('access_key', $access_key, $expires, '/');
+            
+            try {
+                // Check if access_key column exists and update it
+                $check_col = $conn->query("SHOW COLUMNS FROM users LIKE 'access_key'");
+                if ($check_col->rowCount() > 0) {
+                    $stmt = $conn->prepare("UPDATE users SET last_login = NOW(), access_key = ? WHERE id = ?");
+                    $stmt->execute([$access_key, $admin['id']]);
+                } else {
+                    $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                    $stmt->execute([$admin['id']]);
+                }
+            } catch (PDOException $e) {
+                // Error updating database - still continue
+                error_log("Database error: " . $e->getMessage());
+            }
 
-            // Cập nhật thời gian đăng nhập
-            $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-            $stmt->execute([$admin['id']]);
-
-            header('Location: dashboard.php');
+            header('Location: index.php');
             exit();
         } else {
             $error = 'Mật khẩu không đúng!';
