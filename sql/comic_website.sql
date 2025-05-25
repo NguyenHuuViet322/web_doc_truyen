@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.0
+-- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost:3306
--- Generation Time: Dec 19, 2024 at 03:07 PM
--- Server version: 8.0.30
--- PHP Version: 8.1.10
+-- Host: 127.0.0.1
+-- Generation Time: May 26, 2025 at 12:09 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -28,11 +28,11 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `admins` (
-  `id` int NOT NULL,
-  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `username` varchar(50) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -42,11 +42,11 @@ CREATE TABLE `admins` (
 --
 
 CREATE TABLE `chapters` (
-  `id` int NOT NULL,
-  `comic_id` int DEFAULT NULL,
+  `id` int(11) NOT NULL,
+  `comic_id` int(11) DEFAULT NULL,
   `chapter_number` float NOT NULL,
-  `title` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `title` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -64,11 +64,11 @@ INSERT INTO `chapters` (`id`, `comic_id`, `chapter_number`, `title`, `created_at
 --
 
 CREATE TABLE `chapter_images` (
-  `id` int NOT NULL,
-  `chapter_id` int NOT NULL,
-  `image_path` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `image_order` int DEFAULT '0',
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `chapter_id` int(11) NOT NULL,
+  `image_path` varchar(255) NOT NULL,
+  `image_order` int(11) DEFAULT 0,
+  `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -105,25 +105,26 @@ INSERT INTO `chapter_images` (`id`, `chapter_id`, `image_path`, `image_order`, `
 --
 
 CREATE TABLE `comics` (
-  `id` int NOT NULL,
-  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
-  `cover_image` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `author` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('ongoing','completed') COLLATE utf8mb4_unicode_ci DEFAULT 'ongoing',
-  `views` int DEFAULT '0',
-  `latest_chapter` int DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `categories` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `slug` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `cover_image` varchar(255) DEFAULT NULL,
+  `author` varchar(100) DEFAULT NULL,
+  `status` enum('ongoing','completed') DEFAULT 'ongoing',
+  `views` int(11) DEFAULT 0,
+  `latest_chapter` int(11) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `categories` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `comics`
 --
 
-INSERT INTO `comics` (`id`, `title`, `description`, `cover_image`, `author`, `status`, `views`, `latest_chapter`, `created_at`, `updated_at`, `categories`) VALUES
-(3, 'One Piece', 'Truyện tranh One Piece:\r\nOne Piece là câu truyện kể về Luffy và các thuyền viên của mình. Khi còn nhỏ, Luffy ước mơ trở thành Vua Hải Tặc. Cuộc sống của cậu bé thay đổi khi cậu vô tình có được sức mạnh có thể co dãn như cao su, nhưng đổi lại, cậu không bao giờ có thể bơi được nữa. Giờ đây, Luffy cùng những người bạn hải tặc của mình ra khơi tìm kiếm kho báu One Piece, kho báu vĩ đại nhất trên thế giới. Trong One Piece, mỗi nhân vật trong đều mang một nét cá tính đặc sắc kết hợp cùng các tình huống kịch tính, lối dẫn truyện hấp dẫn chứa đầy các bước ngoặt bất ngờ và cũng vô cùng hài hước đã biến One Piece trở thành một trong những bộ truyện nổi tiếng nhất không thể bỏ qua. Hãy đọc One Piece để hòa mình vào một thế giới của những hải tặc rộng lớn, đầy màu sắc, sống động và thú vị, cùng đắm chìm với những nhân vật yêu tự do, trên hành trình đi tìm ước mơ của mình.', '6763f8a4b2353.png', 'Eiichiro Oda', 'ongoing', 0, 0, '2024-12-19 10:42:44', '2024-12-19 11:13:24', 'action,adventure,comedy,fantasy');
+INSERT INTO `comics` (`id`, `title`, `slug`, `description`, `cover_image`, `author`, `status`, `views`, `latest_chapter`, `created_at`, `updated_at`, `categories`) VALUES
+(3, 'One Piece', 'one-piece', 'Truyện tranh One Piece:\r\nOne Piece là câu truyện kể về Luffy và các thuyền viên của mình. Khi còn nhỏ, Luffy ước mơ trở thành Vua Hải Tặc. Cuộc sống của cậu bé thay đổi khi cậu vô tình có được sức mạnh có thể co dãn như cao su, nhưng đổi lại, cậu không bao giờ có thể bơi được nữa. Giờ đây, Luffy cùng những người bạn hải tặc của mình ra khơi tìm kiếm kho báu One Piece, kho báu vĩ đại nhất trên thế giới. Trong One Piece, mỗi nhân vật trong đều mang một nét cá tính đặc sắc kết hợp cùng các tình huống kịch tính, lối dẫn truyện hấp dẫn chứa đầy các bước ngoặt bất ngờ và cũng vô cùng hài hước đã biến One Piece trở thành một trong những bộ truyện nổi tiếng nhất không thể bỏ qua. Hãy đọc One Piece để hòa mình vào một thế giới của những hải tặc rộng lớn, đầy màu sắc, sống động và thú vị, cùng đắm chìm với những nhân vật yêu tự do, trên hành trình đi tìm ước mơ của mình.', '6763f8a4b2353.png', 'Eiichiro Oda', 'ongoing', 17, 0, '2024-12-19 10:42:44', '2025-05-25 22:08:35', 'action,adventure,comedy,fantasy');
 
 --
 -- Triggers `comics`
@@ -144,8 +145,8 @@ DELIMITER ;
 --
 
 CREATE TABLE `comic_genres` (
-  `comic_id` int NOT NULL,
-  `genre_id` int NOT NULL
+  `comic_id` int(11) NOT NULL,
+  `genre_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -166,13 +167,13 @@ INSERT INTO `comic_genres` (`comic_id`, `genre_id`) VALUES
 --
 
 CREATE TABLE `comments` (
-  `id` int NOT NULL,
-  `user_id` int DEFAULT NULL,
-  `comic_id` int DEFAULT NULL,
-  `chapter_id` int DEFAULT NULL,
-  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `status` enum('active','hidden') COLLATE utf8mb4_unicode_ci DEFAULT 'active'
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `comic_id` int(11) DEFAULT NULL,
+  `chapter_id` int(11) DEFAULT NULL,
+  `content` text NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `status` enum('active','hidden') DEFAULT 'active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -182,10 +183,10 @@ CREATE TABLE `comments` (
 --
 
 CREATE TABLE `follows` (
-  `id` int NOT NULL,
-  `user_id` int DEFAULT NULL,
-  `comic_id` int DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `comic_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -195,11 +196,11 @@ CREATE TABLE `follows` (
 --
 
 CREATE TABLE `genres` (
-  `id` int NOT NULL,
-  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `slug` varchar(50) NOT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -254,21 +255,32 @@ INSERT INTO `genres` (`id`, `name`, `slug`, `description`, `created_at`) VALUES
 --
 
 CREATE TABLE `ratings` (
-  `id` int NOT NULL,
-  `user_id` int DEFAULT NULL,
-  `comic_id` int DEFAULT NULL,
-  `rating` int NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ;
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `comic_id` int(11) DEFAULT NULL,
+  `rating` int(11) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE read_history (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT,
-    comic_id INT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (comic_id) REFERENCES comics(id)
-);
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `read_history`
+--
+
+CREATE TABLE `read_history` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `comic_id` int(11) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `read_history`
+--
+
+INSERT INTO `read_history` (`id`, `user_id`, `comic_id`, `created_at`) VALUES
+(1, 5, 3, '2025-05-26 05:08:35');
 
 -- --------------------------------------------------------
 
@@ -277,11 +289,11 @@ CREATE TABLE read_history (
 --
 
 CREATE TABLE `settings` (
-  `id` int NOT NULL,
-  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` text COLLATE utf8mb4_unicode_ci,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `value` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -302,14 +314,14 @@ INSERT INTO `settings` (`id`, `name`, `value`, `created_at`, `updated_at`) VALUE
 --
 
 CREATE TABLE `users` (
-  `id` int NOT NULL,
-  `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `avatar` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT 'default.jpg',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `role` enum('user','admin') COLLATE utf8mb4_unicode_ci DEFAULT 'user',
-  `status` enum('active','banned') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `id` int(11) NOT NULL,
+  `username` varchar(50) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `avatar` varchar(255) DEFAULT 'default.jpg',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `role` enum('user','admin') DEFAULT 'user',
+  `status` enum('active','banned') DEFAULT 'active',
   `last_login` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -318,8 +330,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `password`, `avatar`, `created_at`, `role`, `status`, `last_login`) VALUES
-(1, 'admin', 'admin@example.com', 'Vietaz420', 'default.jpg', '2024-12-19 09:28:33', 'admin', 'active', NULL),
-(4, 'admin2', 'admin2@example.com', '$2y$10$kGEzG923wm2mVIOLOSaUAO/zEt56XHiAARTulAmCUMxYPLHN4eS6C', 'default.jpg', '2024-12-19 09:35:14', 'admin', 'active', '2024-12-19 16:35:35');
+(1, 'admin', 'admin@example.com', '$2y$10$cvtroMPAKdV6yJLdTzJaROUdJDIHIU6Oqir8n2grw3MH3NbPnDd.e', 'default.jpg', '2024-12-19 09:28:33', 'admin', 'active', '2025-05-25 16:49:14'),
+(4, 'admin2', 'admin2@example.com', '$2y$10$kGEzG923wm2mVIOLOSaUAO/zEt56XHiAARTulAmCUMxYPLHN4eS6C', 'default.jpg', '2024-12-19 09:35:14', 'admin', 'active', '2025-05-25 18:07:47'),
+(5, 'user3', 'phamhuylong1806@gmail.com', '$2y$10$86XwDVmBEBgJmQiuncIhFeqjVotwdGkgDlKmMKBwxQe6ireZgTrve', 'default.jpg', '2025-05-25 09:40:03', 'user', 'active', '2025-05-26 03:53:10');
 
 --
 -- Triggers `users`
@@ -340,12 +353,23 @@ DELIMITER ;
 --
 
 CREATE TABLE `views` (
-  `id` int NOT NULL,
-  `chapter_id` int NOT NULL,
-  `user_id` int DEFAULT NULL,
-  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+  `id` int(11) NOT NULL,
+  `chapter_id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `views`
+--
+
+INSERT INTO `views` (`id`, `chapter_id`, `user_id`, `ip_address`, `created_at`) VALUES
+(1, 1, 5, '::1', '2025-05-26 04:47:15'),
+(2, 4, 5, '::1', '2025-05-26 04:47:17'),
+(3, 1, 5, '::1', '2025-05-26 04:49:23'),
+(4, 1, 5, '::1', '2025-05-26 04:52:04'),
+(5, 4, 5, '::1', '2025-05-26 05:06:24');
 
 --
 -- Indexes for dumped tables
@@ -417,6 +441,12 @@ ALTER TABLE `ratings`
   ADD KEY `comic_id` (`comic_id`);
 
 --
+-- Indexes for table `read_history`
+--
+ALTER TABLE `read_history`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `settings`
 --
 ALTER TABLE `settings`
@@ -447,67 +477,73 @@ ALTER TABLE `views`
 -- AUTO_INCREMENT for table `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `chapters`
 --
 ALTER TABLE `chapters`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `chapter_images`
 --
 ALTER TABLE `chapter_images`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `comics`
 --
 ALTER TABLE `comics`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `comments`
 --
 ALTER TABLE `comments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `follows`
 --
 ALTER TABLE `follows`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `genres`
 --
 ALTER TABLE `genres`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `ratings`
 --
 ALTER TABLE `ratings`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `read_history`
+--
+ALTER TABLE `read_history`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `settings`
 --
 ALTER TABLE `settings`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `views`
 --
 ALTER TABLE `views`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- Constraints for dumped tables
