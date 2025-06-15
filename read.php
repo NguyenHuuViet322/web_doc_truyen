@@ -46,7 +46,14 @@ if (!$chapter) {
 $stmt = $conn->prepare("
     SELECT * FROM chapter_images
     WHERE chapter_id = :chapter_id
-    ORDER BY image_order, id
+    ORDER BY 
+        CASE 
+            WHEN page_chapter_image IS NULL OR page_chapter_image = '' THEN 2 
+            ELSE 1 
+        END,
+        page_chapter_image ASC, 
+        image_order ASC, 
+        id ASC
 ");
 $stmt->bindParam(':chapter_id', $chapter_id, PDO::PARAM_INT);
 $stmt->execute();
@@ -162,14 +169,18 @@ $conn->prepare("
     <?php include 'includes/navbar.php'; ?>
     
     <div class="container mt-4">
-        <!-- Chapter info and navigation -->
-        <div class="card mb-4">
+        <!-- Chapter info and navigation -->        <div class="card mb-4">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h1 class="h3"><?php echo htmlspecialchars($chapter['comic_title']); ?></h1>
-                    <a href="comic.php?id=<?php echo $chapter['comic_id']; ?>" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Quay lại
-                    </a>
+                    <div>
+                        <button id="togglePageNames" class="btn btn-outline-secondary btn-sm me-2" title="Ẩn/Hiện tên trang">
+                            <i class="fas fa-tag"></i> <span id="toggleText">Ẩn tên trang</span>
+                        </button>
+                        <a href="comic.php?id=<?php echo $chapter['comic_id']; ?>" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Quay lại
+                        </a>
+                    </div>
                 </div>
                 <h2 class="h5">Chapter <?php echo $chapter['chapter_number']; ?> 
                     <?php if (!empty($chapter['title'])): ?>
@@ -237,12 +248,16 @@ $conn->prepare("
         </div>
         
         <!-- Chapter Content -->
-        <div class="reading-container text-center">
-            <?php if (count($images) > 0): ?>
+        <div class="reading-container text-center">            <?php if (count($images) > 0): ?>
                 <?php foreach ($images as $image): ?>
-                <img src="uploads/chapters/<?php echo htmlspecialchars($image['image_path']); ?>" 
-                     alt="Chapter <?php echo $chapter['chapter_number']; ?> - Image <?php echo $image['image_order']; ?>"
-                     class="chapter-image">
+                <div class="mb-3">
+                    <img src="uploads/chapters/<?php echo htmlspecialchars($image['image_path']); ?>" 
+                         alt="Chapter <?php echo $chapter['chapter_number']; ?> - <?php echo !empty($image['page_chapter_image']) ? htmlspecialchars($image['page_chapter_image']) : 'Image ' . $image['image_order']; ?>"
+                         class="chapter-image">
+                    <?php if (!empty($image['page_chapter_image'])): ?>
+                        <div class="text-muted small mt-1"><?php echo htmlspecialchars($image['page_chapter_image']); ?></div>
+                    <?php endif; ?>
+                </div>
                 <?php endforeach; ?>
             <?php else: ?>
                 <div class="alert alert-info">
@@ -282,8 +297,52 @@ $conn->prepare("
             </div>
         </div>
     </div>
-    
-    <?php include 'includes/footer.php'; ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+      <?php include 'includes/footer.php'; ?>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>    <script>
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            // Left arrow key - go to previous chapter
+            if (e.keyCode === 37) {
+                <?php if ($prev_id): ?>
+                window.location.href = 'read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $prev_id; ?>';
+                <?php endif; ?>
+            }
+            
+            // Right arrow key - go to next chapter
+            if (e.keyCode === 39) {
+                <?php if ($next_id): ?>
+                window.location.href = 'read.php?comic=<?php echo $comic_id; ?>&chapter=<?php echo $next_id; ?>';
+                <?php endif; ?>
+            }
+        });
+
+        // Toggle page names
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleButton = document.getElementById('togglePageNames');
+            const toggleText = document.getElementById('toggleText');
+            const pageNames = document.querySelectorAll('.text-muted.small.mt-1');
+            
+            // Check saved preference
+            const hidePageNames = localStorage.getItem('hidePageNames') === 'true';
+            
+            // Apply initial state
+            if (hidePageNames) {
+                pageNames.forEach(name => name.style.display = 'none');
+                toggleText.textContent = 'Hiện tên trang';
+            }
+            
+            // Toggle button click handler
+            toggleButton.addEventListener('click', function() {
+                const isHidden = pageNames[0].style.display === 'none';
+                
+                pageNames.forEach(name => {
+                    name.style.display = isHidden ? '' : 'none';
+                });
+                
+                toggleText.textContent = isHidden ? 'Ẩn tên trang' : 'Hiện tên trang';
+                localStorage.setItem('hidePageNames', !isHidden);
+            });
+        });
+    </script>
 </body>
 </html>

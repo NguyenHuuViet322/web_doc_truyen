@@ -71,8 +71,8 @@ $recent_chapters = $stmt->fetchAll();
                             <p class="mb-0">Bạn đang đăng nhập với quyền quản trị viên</p>
                         </div>
                         <div class="btn-group">
-                            <a href="comics.php" class="btn btn-primary"><i class="fas fa-book me-2"></i>Quản lý truyện</a>
-                            <a href="users.php" class="btn btn-secondary"><i class="fas fa-users me-2"></i>Quản lý người dùng</a>
+                            <!-- <a href="comics.php" class="btn btn-primary"><i class="fas fa-book me-2"></i>Quản lý truyện</a>
+                            <a href="users.php" class="btn btn-secondary"><i class="fas fa-users me-2"></i>Quản lý người dùng</a> -->
                             <a href="settings.php" class="btn btn-info"><i class="fas fa-cog me-2"></i>Cài đặt hệ thống</a>
                         </div>
                     </div>

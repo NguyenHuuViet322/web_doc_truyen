@@ -6,7 +6,7 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 
 // Cấu hình đường dẫn
-define('BASE_URL', 'http://localhost/perfect-web');
+define('BASE_URL', 'http://localhost/web_doc_truyen');
 define('UPLOAD_PATH', __DIR__ . '/../uploads');
 
 // Cấu hình phân trang

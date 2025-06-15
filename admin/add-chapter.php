@@ -34,6 +34,7 @@ if (!$comic) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $chapter_number = $_POST['chapter_number'];
     $title = $_POST['title'];
+    $page_names = $_POST['page_names'] ?? [];
 
     try {
         $conn->beginTransaction();
@@ -55,9 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $upload_dir = '../uploads/chapters/';
             if (!file_exists($upload_dir)) {
                 mkdir($upload_dir, 0777, true);
-            }
-
-            $image_order = 1; // Bắt đầu từ số 1
+            }            $image_order = 1; // Bắt đầu từ số 1
             foreach ($_FILES['images']['tmp_name'] as $key => $tmp_name) {
                 $file = [
                     'name' => $_FILES['images']['name'][$key],
@@ -66,14 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'error' => $_FILES['images']['error'][$key],
                     'size' => $_FILES['images']['size'][$key]
                 ];
-
-                $image_path = uploadFile($file, $upload_dir);
-                if ($image_path) {
-                    $stmt = $conn->prepare("
-                        INSERT INTO chapter_images (chapter_id, image_path, image_order) 
-                        VALUES (?, ?, ?)
+                
+                // Get page name from the form or use filename if not provided
+                $page_name = isset($page_names[$key]) && !empty($page_names[$key]) 
+                    ? $page_names[$key] 
+                    : pathinfo($_FILES['images']['name'][$key], PATHINFO_FILENAME);$image_path = uploadFile($file, $upload_dir);
+                if ($image_path) {                    $stmt = $conn->prepare("
+                        INSERT INTO chapter_images (chapter_id, image_path, image_order, page_chapter_image) 
+                        VALUES (?, ?, ?, ?)
                     ");
-                    $stmt->execute([$chapter_id, $image_path, $image_order]);
+                    $stmt->execute([$chapter_id, $image_path, $image_order, $page_name]);
                     $image_order++; // Tăng số thứ tự lên 1
                 }
             }
@@ -108,6 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/admin.css">
+    <style>
+        .position-absolute.top-0.start-0 input {
+            width: 120px;
+            opacity: 0.8;
+        }
+        .position-absolute.top-0.start-0 input:focus {
+            opacity: 1;
+        }
+    </style>
 </head>
 
 <body>
@@ -172,19 +182,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>    <script>
         // Preview ảnh trước khi upload
         document.querySelector('input[name="images[]"]').addEventListener('change', function() {
             const preview = document.getElementById('imagePreview');
             preview.innerHTML = '';
 
-            for (const file of this.files) {
+            for (let i = 0; i < this.files.length; i++) {
+                const file = this.files[i];
                 const reader = new FileReader();
+                const index = i; // Capture the current index
                 reader.onload = function(e) {
+                    // Get filename without extension for use as default page name
+                    const fileName = file.name.split('.').slice(0, -1).join('.');
+                    
                     preview.innerHTML += `
                         <div class="col-md-4 mb-3">
-                            <img src="${e.target.result}" class="img-thumbnail" alt="Preview">
+                            <div class="position-relative">
+                                <img src="${e.target.result}" class="img-thumbnail" alt="Preview">
+                                <div class="position-absolute top-0 start-0 m-2">
+                                    <input type="text" class="form-control form-control-sm" 
+                                           name="page_names[]" placeholder="Tên trang" 
+                                           value="${fileName}">
+                                </div>
+                            </div>
                         </div>
                     `;
                 }

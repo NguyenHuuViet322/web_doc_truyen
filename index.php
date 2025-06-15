@@ -4,6 +4,45 @@ require_once 'includes/database.php';
 require_once 'includes/functions.php';
 require_once 'includes/constants.php';
 
+// Ensure upload directories exist
+$directories = [
+    'uploads/',
+    'uploads/avatars/',
+    'uploads/comics/',
+    'uploads/chapters/'
+];
+
+foreach ($directories as $dir) {
+    if (!is_dir($dir)) {
+        if (mkdir($dir, 0777, true)) {
+            error_log("Created directory: $dir");
+        } else {
+            error_log("Failed to create directory: $dir");
+        }
+    }
+}
+
+// Create default avatar if it doesn't exist
+$default_avatar = 'uploads/avatars/default.jpg';
+if (!file_exists($default_avatar)) {
+    // Copy from existing default avatar or create a blank one
+    if (file_exists('assets/images/default_avatar.jpg')) {
+        copy('assets/images/default_avatar.jpg', $default_avatar);
+    } else {
+        // Create a simple default avatar
+        $img = imagecreatetruecolor(200, 200);
+        $bg_color = imagecolorallocate($img, 238, 238, 238);
+        $text_color = imagecolorallocate($img, 100, 100, 100);
+        
+        imagefill($img, 0, 0, $bg_color);
+        imagestring($img, 5, 70, 90, 'Avatar', $text_color);
+        
+        imagejpeg($img, $default_avatar);
+        imagedestroy($img);
+    }
+    error_log("Created default avatar: $default_avatar");
+}
+
 $db = new Database();
 $conn = $db->getConnection();
 

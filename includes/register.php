@@ -9,6 +9,15 @@
  * - Database insertion
  */
 
+// Start session if not started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Make sure we have all required files
+require_once 'database.php';
+require_once 'functions.php';
+
 // Initialize results array
 $registration = [
     'success' => false,
@@ -85,14 +94,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             if ($stmt->execute([$username, $email, $hashed_password])) {
                 $registration['success'] = true;
                 $registration['user_id'] = $conn->lastInsertId();
-                
-                // Optional: Auto-login the user
+                  // Optional: Auto-login the user
                 if (!isset($_SESSION)) {
                     session_start();
-                }
+                }                // Clear all authentication cookies
+                clearAllAuthCookies();
+                
+                // Set fresh session data for the new user
                 $_SESSION['user_id'] = $registration['user_id'];
                 $_SESSION['username'] = $username;
+                $_SESSION['email'] = $email;
                 $_SESSION['role'] = 'user';
+                $_SESSION['logged_in'] = true;
+                
+                // Create user data array for token generation
+                $user = [
+                    'id' => $registration['user_id'],
+                    'username' => $username,
+                    'email' => $email,
+                    'role' => 'user'
+                ];
+                
+                // Set authentication token cookies
+                setAuthTokenCookies($user);
             } else {
                 $registration['errors'][] = 'Đã xảy ra lỗi, vui lòng thử lại sau';
             }

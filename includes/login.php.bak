@@ -1,0 +1,126 @@
+<?php
+// Only start session if not already active
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Fix path to config.php - it should be in the same directory or parent directory
+require_once('config.php'); 
+
+// Fix database.php path - it should be in the same directory
+require_once('database.php'); 
+require_once 'functions.php'; 
+
+// Initialize $login variable for the main login.php file
+$login = [
+    'success' => false,
+    'admin_redirect' => false,
+    'redirect_url' => '',
+    'username' => isset($_POST['username']) ? $_POST['username'] : '',
+    'errors' => []
+];
+
+$error = '';
+
+// Nếu đã đăng nhập thì chuyển đến trang dashboard
+if (isAdmin()) {
+    header('Location: dashboard.php');
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    $db = new Database();
+    $conn = $db->getConnection();
+
+    // First check if the user exists (regardless of role)
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
+    $stmt->execute([$username, $username]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($user) {
+        if (password_verify($password, $user['password'])) {
+            // Set common session variables
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['logged_in'] = true;
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['email'] = $user['email'] ?? '';
+            $_SESSION['created_at'] = $user['created_at'] ?? '';
+            $_SESSION['status'] = $user['status'] ?? '';
+            $_SESSION['last_login'] = $user['last_login'] ?? ''; 
+            
+            // Set avatar if exists
+            if (isset($user['avatar']) && !empty($user['avatar'])) {
+                $_SESSION['avatar'] = $user['avatar'];
+            }
+            
+            // Store existing access_key if present in database
+            if (isset($user['access_key']) && !empty($user['access_key'])) {
+                $_SESSION['access_key'] = $user['access_key'];
+            }
+
+            // Update last login time
+            $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+            $stmt->execute([$user['id']]);
+
+            // Update $login variable
+            $login['success'] = true;
+
+            // Check if admin for redirect
+            if ($user['role'] === 'admin') {
+                // Admin-specific session variables
+                $_SESSION['admin_id'] = $user['id'];
+                $_SESSION['admin_username'] = $user['username'];
+                $_SESSION['admin_role'] = $user['role'];
+                  $login['admin_redirect'] = true;
+                $login['redirect_url'] = 'admin/dashboard.php';
+            } else {
+                // Regular user redirect
+                $login['admin_redirect'] = false;
+                $login['redirect_url'] = 'index.php';
+            }
+            
+            // Remember me functionality
+            if (isset($_POST['remember']) && $_POST['remember'] == 1) {
+                $access_key = bin2hex(random_bytes(32));
+                
+                // Store access key in database
+                $stmt = $conn->prepare("UPDATE users SET access_key = ? WHERE id = ?");
+                $stmt->execute([$access_key, $user['id']]);
+                
+                // Also store in session
+                $_SESSION['access_key'] = $access_key;
+                
+                // Use the helper function to set cookies
+                setRememberMeCookies($user, $access_key);
+            }
+        } else {
+            $error = 'Mật khẩu không đúng!';
+            $login['errors'][] = $error;
+        }
+    } else {
+        $error = 'Tài khoản không tồn tại!';
+        $login['errors'][] = $error;
+    }
+}
+
+// Define display_login_errors function if not already defined
+if (!function_exists('display_login_errors')) {
+    function display_login_errors() {
+        global $login, $error;
+        
+        if (!empty($error)) {
+            echo '<div class="alert alert-danger">' . $error . '</div>';
+        } else if (!empty($login['errors'])) {
+            echo '<div class="alert alert-danger">';
+            foreach ($login['errors'] as $err) {
+                echo $err . '<br>';
+            }
+            echo '</div>';
+        }
+    }
+}
+?>

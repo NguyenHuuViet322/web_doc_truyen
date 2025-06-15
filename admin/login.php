@@ -62,12 +62,15 @@ if (isset($_SESSION['admin_id']) && isset($_SESSION['admin_role']) && $_SESSION[
 }
 
 // Process login form
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    $db = new Database();
-    $conn = $db->getConnection();
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['admin_login'])) {
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+    
+    if (empty($username) || empty($password)) {
+        $error = 'Vui lòng nhập đầy đủ thông tin đăng nhập';
+    } else {
+        $db = new Database();
+        $conn = $db->getConnection();
 
     $stmt = $conn->prepare("SELECT * FROM users WHERE (username = ? OR email = ?) AND role = 'admin'");
     $stmt->execute([$username, $username]);
@@ -120,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } else {
             $error = 'Mật khẩu không đúng!';
         }
-    } else {
-        $error = 'Tài khoản không tồn tại hoặc không có quyền admin!';
+    } else {        $error = 'Tài khoản không tồn tại hoặc không có quyền admin!';
     }
+    } // Close the username/password validation if-else block
 }
 ?>
 
@@ -150,25 +153,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </style>
 </head>
 
-<body>
-    <div class="container">
+<body>    <div class="container">
         <div class="login-form">
             <h2 class="text-center mb-4">Đăng nhập Admin</h2>
 
             <?php if ($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION)): ?>
+                <!-- Debug information, remove in production -->
+                <div class="alert alert-info small">
+                    <p><strong>Debug:</strong> Form submission status: <?php echo ($_SERVER['REQUEST_METHOD'] == 'POST' ? 'Submitted' : 'Not submitted'); ?></p>
+                    <p>Admin login button present: <?php echo (isset($_POST['admin_login']) ? 'Yes' : 'No'); ?></p>
+                </div>
             <?php endif; ?>
 
             <form method="POST">
                 <div class="mb-3">
                     <label class="form-label">Tên đăng nhập</label>
                     <input type="text" name="username" class="form-control" required>
-                </div>
-                <div class="mb-3">
+                </div>                <div class="mb-3">
                     <label class="form-label">Mật khẩu</label>
                     <input type="password" name="password" class="form-control" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
+                <button type="submit" name="admin_login" class="btn btn-primary w-100">Đăng nhập</button>
             </form>
         </div>
     </div>

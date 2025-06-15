@@ -35,7 +35,7 @@ if (!$chapter) {
 }
 
 // Lấy danh sách ảnh của chapter
-$stmt = $conn->prepare("SELECT * FROM chapter_images WHERE chapter_id = ? ORDER BY page_number");
+$stmt = $conn->prepare("SELECT * FROM chapter_images WHERE chapter_id = ? ORDER BY image_order");
 $stmt->execute([$chapter_id]);
 $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -43,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $chapter_number = $_POST['chapter_number'];
     $title = $_POST['title'];
     $deleted_images = $_POST['delete_images'] ?? [];
+    $page_names = $_POST['page_names'] ?? [];
 
     try {
         $conn->beginTransaction();
@@ -57,15 +58,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt->fetch()) {
                 throw new Exception('Chapter này đã tồn tại!');
             }
-        }
-
-        // Cập nhật thông tin chapter
+        }        // Cập nhật thông tin chapter
         $stmt = $conn->prepare("
             UPDATE chapters 
             SET chapter_number = ?, title = ?
             WHERE id = ?
         ");
         $stmt->execute([$chapter_number, $title, $chapter_id]);
+        
+        // Cập nhật tên trang cho các ảnh
+        if (!empty($page_names)) {
+            foreach ($page_names as $image_id => $page_name) {
+                $stmt = $conn->prepare("
+                    UPDATE chapter_images 
+                    SET page_chapter_image = ? 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$page_name, $image_id]);
+            }
+        }
 
         // Xóa các ảnh đã chọn
         if (!empty($deleted_images)) {
@@ -90,11 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $new_images = $_FILES['new_images'];
             $total = count($new_images['name']);
             $values = [];
-            $params = [];
-
-            // Lấy số trang lớn nhất hiện tại
+            $params = [];            // Lấy số thứ tự ảnh lớn nhất hiện tại
             $stmt = $conn->prepare("
-                SELECT COALESCE(MAX(page_number), 0) 
+                SELECT COALESCE(MAX(image_order), 0) 
                 FROM chapter_images 
                 WHERE chapter_id = ?
             ");
@@ -109,24 +118,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         'tmp_name' => $new_images['tmp_name'][$i],
                         'error' => $new_images['error'][$i],
                         'size' => $new_images['size'][$i]
-                    ];
-
-                    $image_path = uploadFile($temp, '../uploads/chapters/');
+                    ];                    $image_path = uploadFile($temp, '../uploads/chapters/');
                     if ($image_path) {
-                        $values[] = "(?, ?, ?)";
+                        // Extract the file name without extension to use as page_chapter_image
+                        $page_name = pathinfo($new_images['name'][$i], PATHINFO_FILENAME);
+                        
+                        $values[] = "(?, ?, ?, ?)";
                         $params = array_merge($params, [
                             $chapter_id,
                             $image_path,
-                            $max_page + $i + 1
+                            $max_page + $i + 1,
+                            $page_name
                         ]);
                     }
                 }
             }
 
-            if (!empty($values)) {
-                $stmt = $conn->prepare(
+            if (!empty($values)) {                $stmt = $conn->prepare(
                     "
-                    INSERT INTO chapter_images (chapter_id, image_path, page_number)
+                    INSERT INTO chapter_images (chapter_id, image_path, image_order, page_chapter_image)
                     VALUES " . implode(',', $values)
                 );
                 $stmt->execute($params);
@@ -153,6 +163,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/admin.css">
+    <style>
+        .position-absolute.top-0.start-0 input {
+            width: 120px;
+            opacity: 0.8;
+        }
+        .position-absolute.top-0.start-0 input:focus {
+            opacity: 1;
+        }
+    </style>
 </head>
 
 <body>
@@ -203,9 +222,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <div class="row">
                                             <?php foreach ($images as $image): ?>
                                                 <div class="col-md-4 mb-3">
-                                                    <div class="position-relative">
-                                                        <img src="../uploads/chapters/<?php echo $image['image_path']; ?>"
-                                                            class="img-thumbnail" alt="Page <?php echo $image['page_number']; ?>">
+                                                    <div class="position-relative">                                                        <img src="../uploads/chapters/<?php echo $image['image_path']; ?>"
+                                                            class="img-thumbnail" alt="Page <?php echo $image['image_order']; ?>">
                                                         <div class="form-check position-absolute top-0 end-0 m-2">
                                                             <input class="form-check-input" type="checkbox"
                                                                 name="delete_images[]" value="<?php echo $image['id']; ?>"
@@ -214,8 +232,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                                 Xóa
                                                             </label>
                                                         </div>
-                                                        <div class="position-absolute bottom-0 start-0 m-2 badge bg-dark">
-                                                            Trang <?php echo $image['page_number']; ?>
+                                                        <div class="position-absolute top-0 start-0 m-2">
+                                                            <input type="text" class="form-control form-control-sm" 
+                                                                name="page_names[<?php echo $image['id']; ?>]" 
+                                                                placeholder="Tên trang" 
+                                                                value="<?php echo htmlspecialchars($image['page_chapter_image'] ?? ''); ?>">
+                                                        </div><div class="position-absolute bottom-0 start-0 m-2 badge bg-dark">
+                                                            <?php 
+                                                                // Show page_chapter_image if available, otherwise show image_order
+                                                                echo !empty($image['page_chapter_image']) ? htmlspecialchars($image['page_chapter_image']) : 'Trang ' . $image['image_order']; 
+                                                            ?>
                                                         </div>
                                                     </div>
                                                 </div>

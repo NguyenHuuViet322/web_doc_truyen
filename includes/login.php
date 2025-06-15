@@ -11,16 +11,21 @@ require_once('config.php');
 require_once('database.php'); 
 require_once 'functions.php'; 
 
-// Initialize $login variable for the main login.php file
-$login = [
-    'success' => false,
-    'admin_redirect' => false,
-    'redirect_url' => '',
-    'username' => isset($_POST['username']) ? $_POST['username'] : '',
-    'errors' => []
-];
+// Use the existing $login and $error variables from the including file
+// If they're not defined yet, initialize them (defensive programming)
+if (!isset($login) || !is_array($login)) {
+    $login = [
+        'success' => false,
+        'admin_redirect' => false,
+        'redirect_url' => '',
+        'username' => isset($_POST['username']) ? $_POST['username'] : '',
+        'errors' => []
+    ];
+}
 
-$error = '';
+if (!isset($error)) {
+    $error = '';
+}
 
 // Nếu đã đăng nhập thì chuyển đến trang dashboard
 if (isAdmin()) {
@@ -28,33 +33,105 @@ if (isAdmin()) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+    
+    // Update username in login array for form repopulation
+    $login['username'] = $username;
+    
+    // Basic validation
+    if (empty($username)) {
+        $error = 'Vui lòng nhập tên đăng nhập hoặc email';
+        $login['errors'][] = $error;
+    } 
+    
+    if (empty($password)) {
+        $error = 'Vui lòng nhập mật khẩu';
+        $login['errors'][] = $error;
+    }
+      // Only proceed if we have both username and password
+    if (!empty($username) && !empty($password)) {
+        $db = new Database();
+        $conn = $db->getConnection();
+        
+        // Debug database connection
+        if (!$conn) {
+            error_log("Database connection failed in login.php");
+        } else {
+            error_log("Database connection successful in login.php");
+        }
+        
+        // First check if the user exists (regardless of role)
+        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
+        $stmt->execute([$username, $username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Debug user data
+        error_log("Login attempt: Username: " . $username);
+        error_log("User data found: " . ($user ? "Yes" : "No"));
+        if ($user) {
+            error_log("User columns: " . implode(", ", array_keys($user)));
+        }
 
-    $db = new Database();
-    $conn = $db->getConnection();
-
-    // First check if the user exists (regardless of role)
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
-    $stmt->execute([$username, $username]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($user) {
-        if (password_verify($password, $user['password'])) {
-            // Set common session variables
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
+        if ($user) {        
+            if (password_verify($password, $user['password'])) {            // Dump the entire user object for debugging
+            error_log("User data retrieved in login: " . print_r($user, true));
+              // Set session variables with safe access methods
+            // Essential fields with safe fallbacks
+            $_SESSION['user_id'] = $user['id'] ?? 0; 
             $_SESSION['logged_in'] = true;
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['email'] = $user['email'] ?? '';
-            $_SESSION['created_at'] = $user['created_at'] ?? '';
-            $_SESSION['status'] = $user['status'] ?? '';
-            $_SESSION['last_login'] = $user['last_login'] ?? ''; 
             
-            // Set avatar if exists
+            // Check each field individually
+            if (isset($user['username'])) {
+                $_SESSION['username'] = $user['username'];
+            } else {
+                $_SESSION['username'] = 'User';
+                error_log("username field missing in user record");
+            }
+            
+            if (isset($user['role'])) {
+                $_SESSION['role'] = $user['role'];
+            } else {
+                $_SESSION['role'] = 'user';
+                error_log("role field missing in user record");
+            }
+            
+            if (isset($user['email'])) {
+                $_SESSION['email'] = $user['email'];
+            } else {
+                $_SESSION['email'] = '';
+                error_log("email field missing in user record");
+            }
+              // Optional fields with explicit checks and debug logging
+            if (isset($user['created_at'])) {
+                $_SESSION['created_at'] = $user['created_at'];
+            } else {
+                $_SESSION['created_at'] = date('Y-m-d H:i:s');
+                error_log("LOGIN: created_at not found in user data, using current date");
+            }
+            
+            if (isset($user['status'])) {
+                $_SESSION['status'] = $user['status'];
+                error_log("LOGIN: Setting status from database: " . $user['status']);
+            } else {
+                $_SESSION['status'] = 'active';
+                error_log("LOGIN: status not found in user data, using 'active'");
+            }
+            
+            if (isset($user['last_login'])) {
+                $_SESSION['last_login'] = $user['last_login'];
+            } else {
+                $_SESSION['last_login'] = date('Y-m-d H:i:s');
+                error_log("LOGIN: last_login not found in user data, using current date");
+            }
+              // Set avatar from database or default - with explicit debug
             if (isset($user['avatar']) && !empty($user['avatar'])) {
                 $_SESSION['avatar'] = $user['avatar'];
+                error_log("LOGIN: Setting avatar from database: " . $user['avatar']);
+            } else {
+                $_SESSION['avatar'] = 'default.jpg';
+                error_log("LOGIN: Avatar not found in user data, using default.jpg");
             }
             
             // Store existing access_key if present in database
@@ -83,50 +160,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $login['admin_redirect'] = false;
                 $login['redirect_url'] = 'index.php';
             }
-            
-            // Remember me functionality
+              // Remember me functionality
             if (isset($_POST['remember']) && $_POST['remember'] == 1) {
-                $access_key = bin2hex(random_bytes(32));
+                // Use new token-based authentication (no database storage needed)
+                setAuthTokenCookies($user);
                 
-                // Store access key in database
-                $stmt = $conn->prepare("UPDATE users SET access_key = ? WHERE id = ?");
-                $stmt->execute([$access_key, $user['id']]);
-                
-                // Also store in session
-                $_SESSION['access_key'] = $access_key;
-                
-                // Set cookies
-                $user_data = [
-                    'id' => $user['id'],
-                    'username' => $user['username']
-                ];
-                setcookie('access_key', $access_key, time() + (30 * 24 * 60 * 60), '/'); // 30 days
-                setcookie('user_data', json_encode($user_data), time() + (30 * 24 * 60 * 60), '/');
+                // Store token info in session for reference
+                $_SESSION['remember_me'] = true;
             }
         } else {
             $error = 'Mật khẩu không đúng!';
             $login['errors'][] = $error;
-        }
-    } else {
+        }    } else {
         $error = 'Tài khoản không tồn tại!';
         $login['errors'][] = $error;
     }
+    } // Close the if block for username/password validation
 }
 
-// Define display_login_errors function if not already defined
-if (!function_exists('display_login_errors')) {
-    function display_login_errors() {
-        global $login, $error;
-        
-        if (!empty($error)) {
-            echo '<div class="alert alert-danger">' . $error . '</div>';
-        } else if (!empty($login['errors'])) {
-            echo '<div class="alert alert-danger">';
-            foreach ($login['errors'] as $err) {
-                echo $err . '<br>';
-            }
-            echo '</div>';
+// Define display_login_errors function - always define it
+function display_login_errors() {
+    global $login, $error;
+    
+    if (!empty($error)) {
+        echo '<div class="alert alert-danger">' . $error . '</div>';
+    } else if (!empty($login['errors'])) {
+        echo '<div class="alert alert-danger">';
+        foreach ($login['errors'] as $err) {
+            echo $err . '<br>';
         }
+        echo '</div>';
     }
 }
 ?>

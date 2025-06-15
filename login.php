@@ -4,6 +4,17 @@ require_once 'includes/config.php';
 require_once 'includes/database.php';
 require_once 'includes/functions.php';
 
+// Initialize the $login and $error variables here to ensure they're in scope
+$login = [
+    'success' => false,
+    'admin_redirect' => false,
+    'redirect_url' => '',
+    'username' => isset($_POST['username']) ? $_POST['username'] : '',
+    'errors' => []
+];
+
+$error = '';
+
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     header('Location: index.php');
@@ -136,9 +147,23 @@ if ($login['success']) {
                 <h2><i class="fas fa-sign-in-alt me-2"></i>Đăng nhập</h2>
                 <p class="mb-0">Chào mừng bạn quay trở lại!</p>
             </div>
-            
-            <div class="auth-body">
-                <?php display_login_errors(); ?>
+              <div class="auth-body">                <?php 
+                // Safe way to call the function with error handling
+                if (function_exists('display_login_errors')) {
+                    display_login_errors();
+                } else {
+                    // Fallback if function doesn't exist
+                    if (!empty($error)) {
+                        echo '<div class="alert alert-danger">' . htmlspecialchars($error) . '</div>';
+                    } else if (isset($login['errors']) && !empty($login['errors'])) {
+                        echo '<div class="alert alert-danger">';
+                        foreach ($login['errors'] as $err) {
+                            echo htmlspecialchars($err) . '<br>';
+                        }
+                        echo '</div>';
+                    }
+                }
+                ?>
                 
                 <form method="POST" action="login.php">
                     <div class="mb-3">

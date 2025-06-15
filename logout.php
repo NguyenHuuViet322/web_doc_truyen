@@ -19,15 +19,9 @@ if (ini_get("session.use_cookies")) {
     );
 }
 
-// Clear ALL authentication cookies
-setcookie('remember_token', '', time() - 3600, '/');
-setcookie('remember_user', '', time() - 3600, '/');
-setcookie('user_data', '', time() - 3600, '/');
-setcookie('access_key', '', time() - 3600, '/');
-
-// For extra security, try with different paths
-setcookie('user_data', '', time() - 3600, '/comic/web_doc_truyen/');
-setcookie('access_key', '', time() - 3600, '/comic/web_doc_truyen/');
+// Use the centralized function to clear ALL authentication cookies
+require_once 'includes/functions.php';
+clearAllAuthCookies();
 
 // Destroy the session
 session_destroy();
